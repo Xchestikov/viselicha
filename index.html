@@ -143,8 +143,8 @@
     <h2>👩‍🏫 Teacher mode</h2>
     <p class="hint">
       Add your own questions below. One line = one question and answer.
-      Format: <b>Question | ANSWER</b><br>
-      Example: <b>What animal says meow? | CAT</b>
+      Format: <b>Question / ANSWER</b><br>
+      Example: <b>What animal says meow? / CAT</b>
     </p>
     <textarea id="questionsInput"></textarea>
     <div class="teacher-actions">
@@ -295,15 +295,15 @@ function saveQuestions() {
   const lines = text.split("\\n").map(x => x.trim()).filter(Boolean);
   const parsed = [];
   for (const line of lines) {
-    const parts = line.split("|");
+    const parts = line.split("/");
     if (parts.length >= 2) {
       const q = parts[0].trim();
-      const a = parts.slice(1).join("|").trim().toUpperCase();
+      const a = parts.slice(1).join("/").trim().toUpperCase();
       if (q && a.replace(/[^A-Z]/g, "")) parsed.push([q, a]);
     }
   }
   if (!parsed.length) {
-    alert("Please add at least one question in the format: Question | ANSWER");
+    alert("Please add at least one question in the format: Question / ANSWER");
     return;
   }
   questions = parsed;
