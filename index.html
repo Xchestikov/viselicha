@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Hangman</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+    color: #172033;
+    min-height: 100vh;
+  }
+  .app { max-width: 1100px; margin: auto; padding: 24px; }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; margin-bottom: 20px;
+  }
+  h1 { margin: 0; font-size: 32px; }
+  .subtitle { color: #64748b; margin-top: 5px; }
+  button {
+    border: 0; border-radius: 12px; padding: 12px 18px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: .15s transform, .15s opacity;
+  }
+  button:hover { transform: translateY(-1px); }
+  .secondary { background: #e2e8f0; color: #334155; }
+  .primary { background: #4f46e5; color: white; }
+  .danger { background: #fee2e2; color: #b91c1c; }
+  .game {
+    display: grid; grid-template-columns: 360px 1fr; gap: 20px;
+  }
+  .card {
+    background: white; border-radius: 20px; padding: 24px;
+    box-shadow: 0 10px 30px rgba(15,23,42,.08);
+  }
+  .hangman {
+    min-height: 430px; display: flex; align-items: center; justify-content: center;
+    background: #f8fafc;
+  }
+  svg { width: 300px; height: 360px; }
+  .draw { fill: none; stroke: #172033; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+  .draw.hidden { visibility: hidden; }
+  .question {
+    font-size: 25px; line-height: 1.35; font-weight: 700;
+    margin: 8px 0 22px;
+  }
+  .meta {
+    display: flex; justify-content: space-between; align-items: center;
+    color: #64748b; font-weight: 700; margin-bottom: 10px;
+  }
+  .word {
+    min-height: 65px; display: flex; flex-wrap: wrap; gap: 10px;
+    align-items: flex-end; justify-content: center; margin: 22px 0 28px;
+  }
+  .letter-slot {
+    width: 38px; height: 48px; border-bottom: 4px solid #4f46e5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 29px; font-weight: 800; text-transform: uppercase;
+  }
+  .keyboard {
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px;
+  }
+  .key {
+    padding: 11px 5px; background: #eef2ff; color: #3730a3;
+    border: 1px solid #c7d2fe;
+  }
+  .key:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+  .key.correct { background: #dcfce7; color: #15803d; border-color: #86efac; }
+  .key.wrong { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+  .status {
+    min-height: 48px; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 19px; font-weight: 800; margin: 16px 0;
+  }
+  .status.win { color: #15803d; }
+  .status.lose { color: #b91c1c; }
+  .bottom { display: flex; gap: 10px; justify-content: center; }
+  .teacher {
+    margin-top: 20px;
+  }
+  .teacher h2 { margin-top: 0; }
+  textarea {
+    width: 100%; min-height: 180px; resize: vertical;
+    border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px;
+    font: 14px/1.5 monospace; outline: none;
+  }
+  textarea:focus { border-color: #818cf8; }
+  .hint { color: #64748b; font-size: 14px; line-height: 1.5; }
+  .teacher-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .score { font-size: 16px; }
+  @media (max-width: 800px) {
+    .game { grid-template-columns: 1fr; }
+    .hangman { min-height: 300px; }
+    .keyboard { grid-template-columns: repeat(7, 1fr); }
+    header { align-items: flex-start; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>🎯 English Hangman</h1>
+      <div class="subtitle">Guess the hidden English word</div>
+    </div>
+    <button class="secondary" onclick="toggleTeacher()">⚙ Teacher mode</button>
+  </header>
+
+  <div class="game">
+    <div class="card hangman">
+      <svg viewBox="0 0 300 360" aria-label="Hangman drawing">
+        <path class="draw" d="M35 330 H265"/>
+        <path id="p1" class="draw hidden" d="M75 330 V35 H220"/>
+        <path id="p2" class="draw hidden" d="M220 35 V70"/>
+        <circle id="p3" class="draw hidden" cx="220" cy="105" r="35"/>
+        <path id="p4" class="draw hidden" d="M220 140 V230"/>
+        <path id="p5" class="draw hidden" d="M220 165 L175 205"/>
+        <path id="p6" class="draw hidden" d="M220 165 L265 205"/>
+        <path id="p7" class="draw hidden" d="M220 230 L180 290"/>
+        <path id="p8" class="draw hidden" d="M220 230 L260 290"/>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="meta">
+        <span id="counter">Question 1 / 1</span>
+        <span class="score">Mistakes: <b id="mistakes">0</b> / 8</span>
+      </div>
+      <div class="question" id="question"></div>
+      <div class="word" id="word"></div>
+      <div class="status" id="status"></div>
+      <div class="keyboard" id="keyboard"></div>
+      <div class="bottom">
+        <button class="primary" onclick="nextWord()">Next word →</button>
+        <button class="secondary" onclick="restart()">Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card teacher" id="teacherPanel" style="display:none">
+    <h2>👩‍🏫 Teacher mode</h2>
+    <p class="hint">
+      Add your own questions below. One line = one question and answer.
+      Format: <b>Question | ANSWER</b><br>
+      Example: <b>What animal says meow? | CAT</b>
+    </p>
+    <textarea id="questionsInput"></textarea>
+    <div class="teacher-actions">
+      <button class="primary" onclick="saveQuestions()">Save questions</button>
+      <button class="secondary" onclick="loadExample()">Load examples</button>
+      <button class="danger" onclick="clearQuestions()">Clear</button>
+    </div>
+    <p class="hint">Your questions are saved in this browser, so you can close the file and open it again later.</p>
+  </div>
+</div>
+
+<script>
+const EXAMPLES = [
+  ["What animal says 'meow'?", "CAT"],
+  ["What do we drink when we are thirsty?", "WATER"],
+  ["What is the opposite of 'hot'?", "COLD"],
+  ["What color is the sky on a clear day?", "BLUE"],
+  ["What do bees make?", "HONEY"]
+];
+
+let questions = [];
+let current = 0;
+let answer = "";
+let guessed = new Set();
+let mistakes = 0;
+const MAX_MISTAKES = 8;
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function loadQuestions() {
+  const saved = localStorage.getItem("englishHangmanQuestions");
+  if (saved) {
+    try { questions = JSON.parse(saved); } catch(e) {}
+  }
+  if (!questions.length) questions = EXAMPLES.slice();
+  document.getElementById("questionsInput").value =
+    questions.map(q => q[0] + " | " + q[1]).join("\\n");
+}
+
+function init() {
+  loadQuestions();
+  renderKeyboard();
+  startRound();
+}
+
+function startRound() {
+  if (!questions.length) return;
+  const item = questions[current % questions.length];
+  answer = item[1].toUpperCase().replace(/[^A-Z]/g, "");
+  guessed = new Set();
+  mistakes = 0;
+  document.getElementById("question").textContent = item[0];
+  document.getElementById("counter").textContent =
+    `Question ${current % questions.length + 1} / ${questions.length}`;
+  document.getElementById("mistakes").textContent = mistakes;
+  document.getElementById("status").textContent = "";
+  document.getElementById("status").className = "status";
+  updateDrawing();
+  renderWord();
+  renderKeyboard();
+}
+
+function renderWord() {
+  const box = document.getElementById("word");
+  box.innerHTML = "";
+  for (const ch of answer) {
+    const slot = document.createElement("div");
+    slot.className = "letter-slot";
+    slot.textContent = guessed.has(ch) ? ch : "";
+    box.appendChild(slot);
+  }
+}
+
+function renderKeyboard() {
+  const box = document.getElementById("keyboard");
+  box.innerHTML = "";
+  alphabet.split("").forEach(ch => {
+    const b = document.createElement("button");
+    b.className = "key";
+    b.textContent = ch;
+    b.onclick = () => guess(ch);
+    if (guessed.has(ch)) {
+      b.disabled = true;
+      b.classList.add(answer.includes(ch) ? "correct" : "wrong");
+    }
+    box.appendChild(b);
+  });
+}
+
+function guess(ch) {
+  if (guessed.has(ch) || mistakes >= MAX_MISTAKES || isWon()) return;
+  guessed.add(ch);
+  if (!answer.includes(ch)) mistakes++;
+  document.getElementById("mistakes").textContent = mistakes;
+  renderWord();
+  renderKeyboard();
+  updateDrawing();
+  checkEnd();
+}
+
+function isWon() {
+  return answer.split("").every(ch => guessed.has(ch));
+}
+
+function checkEnd() {
+  const status = document.getElementById("status");
+  if (isWon()) {
+    status.textContent = "🎉 Correct! Well done!";
+    status.className = "status win";
+  } else if (mistakes >= MAX_MISTAKES) {
+    status.textContent = `❌ Game over! The answer is: ${answer}`;
+    status.className = "status lose";
+    renderWord(true);
+  }
+}
+
+function renderWord(reveal = false) {
+  const box = document.getElementById("word");
+  box.innerHTML = "";
+  for (const ch of answer) {
+    const slot = document.createElement("div");
+    slot.className = "letter-slot";
+    slot.textContent = (guessed.has(ch) || reveal) ? ch : "";
+    box.appendChild(slot);
+  }
+}
+
+function updateDrawing() {
+  for (let i = 1; i <= 8; i++)
+    document.getElementById("p" + i).classList.toggle("hidden", i > mistakes);
+}
+
+function nextWord() {
+  current = (current + 1) % questions.length;
+  startRound();
+}
+
+function restart() {
+  startRound();
+}
+
+function toggleTeacher() {
+  const panel = document.getElementById("teacherPanel");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+}
+
+function saveQuestions() {
+  const text = document.getElementById("questionsInput").value;
+  const lines = text.split("\\n").map(x => x.trim()).filter(Boolean);
+  const parsed = [];
+  for (const line of lines) {
+    const parts = line.split("|");
+    if (parts.length >= 2) {
+      const q = parts[0].trim();
+      const a = parts.slice(1).join("|").trim().toUpperCase();
+      if (q && a.replace(/[^A-Z]/g, "")) parsed.push([q, a]);
+    }
+  }
+  if (!parsed.length) {
+    alert("Please add at least one question in the format: Question | ANSWER");
+    return;
+  }
+  questions = parsed;
+  localStorage.setItem("englishHangmanQuestions", JSON.stringify(questions));
+  current = 0;
+  startRound();
+  alert("Questions saved!");
+}
+
+function loadExample() {
+  questions = EXAMPLES.slice();
+  document.getElementById("questionsInput").value =
+    questions.map(q => q[0] + " | " + q[1]).join("\\n");
+}
+
+function clearQuestions() {
+  if (!confirm("Clear all saved questions?")) return;
+  localStorage.removeItem("englishHangmanQuestions");
+  questions = [];
+  document.getElementById("questionsInput").value = "";
+  document.getElementById("question").textContent = "Add questions in Teacher mode.";
+  document.getElementById("word").innerHTML = "";
+  document.getElementById("keyboard").innerHTML = "";
+}
+
+document.addEventListener("keydown", e => {
+  const ch = e.key.toUpperCase();
+  if (/^[A-Z]$/.test(ch)) guess(ch);
+});
+
+init();
+</script>
+</body>
+</html>
